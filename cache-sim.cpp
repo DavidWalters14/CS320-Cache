@@ -87,26 +87,56 @@ unsigned int setAssociate(int associative, vector<input> input){
 	}
 	return cachehits;
 }
-
-void changeHotCold(int index, vector<int> &hc){
-	int mid = 256;
+vector<int> changeHotCold(int index, vector<int> &hc){
+	int mid = 255;
 	int start = 0;
-	int end = 512;
-	while(start < end){
-		if(index < mid){
+	int end = 511;
+	while(start != end){
+		if(index <= mid){
 			end = mid;
-			hc[mid] = 1;
-			mid = mid/2;
+			hc[mid] = 0;
+			mid = (start+end)/2;
 		}
 		else if(index > mid){
 			start = mid+1;
+			hc[mid] = 1;
 			mid = (start+end)/2;
-			hc[index] = 0;
-		}
-		else{
-			return;
 		}
 	}
+	return hc;
+}
+int findhottest(vector<int> hc){
+	int mid = 255;
+	int start = 0;
+	int end = 511;
+	while(start != end){
+		if(hc[mid]==1){
+			start=mid+1;
+			mid = (start+end)/2;
+		}
+		else{
+			end = mid;
+			mid = (start+end)/2;
+		}
+	}
+	return start;
+}
+
+int findLRUhotcold(vector<int> hc){
+	int mid = 255;
+	int start = 0;
+	int end = 511;
+	while(start != end){
+		if(hc[mid]==0){
+			start=mid+1;
+			mid = (start+end)/2;
+		}
+		else{
+			end = mid;
+			mid = (start+end)/2;
+		}
+	}
+	return start;
 }
 unsigned int fullAssociative(vector<input> input){
 	vector<cacheline> cache;
@@ -116,7 +146,7 @@ unsigned int fullAssociative(vector<input> input){
 		c = {0,0,0};
 		cache.push_back(c);
 	}
-	vector<int> hotcold(512, 0);
+	vector<int> hotcold(511, 0);
 	for(int i = 0 ; i < input.size() ; i++){
 		unsigned int currindex = 0;
 		unsigned int currtag = (input[i].address >> 5);
@@ -126,7 +156,48 @@ unsigned int fullAssociative(vector<input> input){
 				cache[currindex].tag = currtag;
 				cache[currindex].validbit = 1;
 				cache[currindex].time = i;
-				hotcold[currindex] = 1;
+				placed = true;
+				hotcold = changeHotCold(currindex, hotcold);
+			}
+			else if(cache[currindex].validbit==1&&cache[currindex].tag==currtag){
+				cachehits++;
+				cache[currindex].time = i;
+				placed = true;
+				hotcold = changeHotCold(currindex, hotcold);
+			}
+			currindex++;
+		}
+		currindex = 0;
+		if(placed==false){
+			int bootindex = findLRUhotcold(hotcold);
+			cache[bootindex].tag = currtag;
+			cache[bootindex].validbit = 1;
+			cache[bootindex].time = i;
+			changeHotCold(bootindex, hotcold);
+		}
+	}
+	return cachehits;
+}
+
+int setAssociatewritemiss(int associative, vector<input> input){
+	vector<cacheline> cache;
+	unsigned int cachehits = 0;
+	for(int i = 0 ; i < 512 ; i++){
+		cacheline c;
+		c = {0,0,0};
+		cache.push_back(c);
+	}
+	int indexsize = 512/associative;
+	for(int i = 0 ; i < input.size() ; i++){
+		unsigned long long currindex = (input[i].address >> 5) % indexsize;
+		unsigned int mask = pow(2,32)-1;
+		unsigned int currtag = mask & (input[i].address >> (int)(5 + (log2(indexsize))));
+		bool placed = false;
+		while(currindex<512&&placed==false){
+			if(cache[currindex].validbit==0&&input[i].behave!="S"){
+				cache[currindex].tag = currtag;
+				cache[currindex].validbit = 1;
+				cache[currindex].time = i;
 				placed = true;
 			}
 			else if(cache[currindex].validbit==1&&cache[currindex].tag==currtag){
@@ -134,21 +205,18 @@ unsigned int fullAssociative(vector<input> input){
 				cache[currindex].time = i;
 				placed = true;
 			}
-			currindex++;
+			currindex+=indexsize;
 		}
-		currindex = 0;
 		unsigned int LRUtime = input.size()+1;
 		unsigned int LRUindex = 0;
-		if(placed==false){
-			int startindex = 0;
-			int endindex = 511;
-			while(startindex!=endindex){
-				if(hotcold[endindex/2]==0){
-					startindex = endindex/2+1;
+		if(placed==false&&input[i].behave!="S"){
+			unsigned long long currindex = (input[i].address >> 5) % indexsize;
+			while(currindex < 512){
+				if(cache[currindex].time < LRUtime){
+					LRUtime = cache[currindex].time;
+					LRUindex = currindex;
 				}
-				else{
-					startindex = endindex/2;
-				}
+				currindex+=indexsize;
 			}
 			cache[LRUindex].tag = currtag;
 			cache[LRUindex].validbit = 1;
@@ -157,7 +225,175 @@ unsigned int fullAssociative(vector<input> input){
 	}
 	return cachehits;
 }
-
+int setAssociatewithPrefetch(int associative, vector<input> input){
+	vector<cacheline> cache;
+	unsigned int cachehits = 0;
+	for(int i = 0 ; i < 512 ; i++){
+		cacheline c;
+		c = {0,0,0};
+		cache.push_back(c);
+	}
+	int indexsize = 512/associative;
+	for(int i = 0 ; i < input.size() ; i++){
+		unsigned long long currindex = (input[i].address >> 5) % indexsize;
+		unsigned int mask = pow(2,32)-1;
+		unsigned int currtag = mask & (input[i].address >> (int)(5 + (log2(indexsize))));
+		bool placed = false;
+		while(currindex<512&&placed==false){
+			if(cache[currindex].validbit==0){
+				cache[currindex].tag = currtag;
+				cache[currindex].validbit = 1;
+				cache[currindex].time = i;
+				placed = true;
+			}
+			else if(cache[currindex].validbit==1&&cache[currindex].tag==currtag){
+				cachehits++;
+				cache[currindex].time = i;
+				placed = true;
+			}
+			currindex+=indexsize;
+		}
+		unsigned int LRUtime = input.size()+1;
+		unsigned int LRUindex = 0;
+		if(placed==false){
+			unsigned long long currindex = (input[i].address >> 5) % indexsize;
+			while(currindex < 512){
+				if(cache[currindex].time < LRUtime){
+					LRUtime = cache[currindex].time;
+					LRUindex = currindex;
+				}
+				currindex+=indexsize;
+			}
+			cache[LRUindex].tag = currtag;
+			cache[LRUindex].validbit = 1;
+			cache[LRUindex].time = i;
+		}
+		//cout << "done with i" << endl;
+		unsigned long long nextindex = ((input[i].address+32) >> 5) % indexsize;
+		//cout << "nextindex: " << nextindex << endl;
+		unsigned int nextag = mask & ((input[i].address+32) >> (int)(5 + (log2(indexsize))));
+		//cout << "nextag: " << nextag << endl;
+		bool placed2 = false;
+		while(nextindex<512&&placed2==false){
+			//cout << "inside while loop of next block" << endl;
+			if(cache[nextindex].validbit==0){
+				//cout << "inside if" << endl;
+				cache[nextindex].tag = nextag;
+				cache[nextindex].validbit = 1;
+				cache[nextindex].time = i;
+				placed2 = true;
+			}
+			else if(cache[nextindex].validbit==1&&cache[nextindex].tag==nextag){
+				//cout << "else if" << endl;
+				cache[nextindex].time = i;
+				placed2 = true;
+			}
+			nextindex+=indexsize;
+		}
+		unsigned int LRUtime2 = input.size()+3;
+		unsigned int LRUindex2 = 0;
+		if(placed2==false){
+			nextindex = ((input[i].address+32) >> 5) % indexsize;
+			while(nextindex < 512){
+				//cout << "inside of while in LRU" << endl;
+				if(cache[nextindex].time < LRUtime2){
+					LRUtime2 = cache[nextindex].time;
+					LRUindex2 = nextindex;
+				}
+				nextindex+=indexsize;
+			}
+			cache[LRUindex2].tag = nextag;
+			cache[LRUindex2].validbit = 1;
+			cache[LRUindex2].time = i;
+		}
+	}
+	return cachehits;
+}
+int setAssociatewithPrefetchOnMiss(int associative, vector<input> input){
+	vector<cacheline> cache;
+	unsigned int cachehits = 0;
+	for(int i = 0 ; i < 512 ; i++){
+		cacheline c;
+		c = {0,0,0};
+		cache.push_back(c);
+	}
+	int indexsize = 512/associative;
+	for(int i = 0 ; i < input.size() ; i++){
+		unsigned long long currindex = (input[i].address >> 5) % indexsize;
+		unsigned int mask = pow(2,32)-1;
+		unsigned int currtag = mask & (input[i].address >> (int)(5 + (log2(indexsize))));
+		bool placed = false;
+		bool fetch = false;
+		while(currindex<512&&placed==false){
+			if(cache[currindex].validbit==0){
+				cache[currindex].tag = currtag;
+				cache[currindex].validbit = 1;
+				cache[currindex].time = i;
+				fetch = true;
+				placed = true;
+			}
+			else if(cache[currindex].validbit==1&&cache[currindex].tag==currtag){
+				cachehits++;
+				cache[currindex].time = i;
+				placed = true;
+			}
+			currindex+=indexsize;
+		}
+		if(placed == false){
+			unsigned int LRUtime = input.size()+1;
+			unsigned int LRUindex = 0;
+			currindex = (input[i].address >> 5) % indexsize;
+			while(currindex < 512){
+				if(cache[currindex].time < LRUtime){
+					LRUtime = cache[currindex].time;
+					LRUindex = currindex;
+				}
+				currindex+=indexsize;
+			}
+			cache[LRUindex].tag = currtag;
+			cache[LRUindex].validbit = 1;
+			cache[LRUindex].time = i;
+			fetch=true;
+		}
+		if(fetch==true){//cache miss, prefetch next line and do LRU for initial address
+			unsigned long long nextindex = ((input[i].address+32) >> 5) % indexsize;
+			unsigned int nextag = mask & ((input[i].address+32) >> (int)(5 + (log2(indexsize))));
+			bool placed2 = false;
+			while(nextindex<512&&placed2==false){
+				if(cache[nextindex].validbit==0){
+					//cout << "inside if" << endl;
+					cache[nextindex].tag = nextag;
+					cache[nextindex].validbit = 1;
+					cache[nextindex].time = i;
+					placed2 = true;
+				}
+				else if(cache[nextindex].validbit==1&&cache[nextindex].tag==nextag){
+					//cout << "else if" << endl;
+					cache[nextindex].time = i;
+					placed2 = true;
+				}
+				nextindex+=indexsize;
+			}
+			unsigned int LRUtime2 = input.size()+3;
+			unsigned int LRUindex2 = 0;
+			if(placed2==false){
+				nextindex = ((input[i].address+32) >> 5) % indexsize;
+				while(nextindex < 512){
+					//cout << "inside of while in LRU" << endl;
+					if(cache[nextindex].time < LRUtime2){
+						LRUtime2 = cache[nextindex].time;
+						LRUindex2 = nextindex;
+					}
+					nextindex+=indexsize;
+				}
+				cache[LRUindex2].tag = nextag;
+				cache[LRUindex2].validbit = 1;
+				cache[LRUindex2].time = i;
+			}
+		}
+	}
+	return cachehits;
+}
 int main(int argc, char** argv){
 	ifstream infile(argv[1]);
 	vector<input> inputs;
@@ -169,7 +405,7 @@ int main(int argc, char** argv){
 		i.address = target;
 		inputs.push_back(i);
   	}
-	cout << directMap(1024,inputs) << endl;
+	cout << directMap(1024,inputs) << ","<< inputs.size()<<endl;
 	cout << directMap(4096,inputs) << endl;
 	cout << directMap(16384,inputs) << endl;
 	cout << directMap(32768,inputs) << endl;
@@ -177,7 +413,25 @@ int main(int argc, char** argv){
 	cout << setAssociate(4,inputs) << endl;
 	cout << setAssociate(8,inputs) << endl;
 	cout << setAssociate(16,inputs) << endl;
+	cout << setAssociate(512,inputs) << endl;
 		cout << fullAssociative(inputs) << endl;
+	cout << setAssociatewritemiss(2,inputs) << endl;
+		cout << setAssociatewritemiss(4,inputs) << endl;
+			cout << setAssociatewritemiss(8,inputs) << endl;
+	cout << setAssociatewritemiss(16,inputs) << endl;
+	cout << setAssociatewithPrefetch(2,inputs) << endl;
+		cout << setAssociatewithPrefetch(4,inputs) << endl;
+			cout << setAssociatewithPrefetch(8,inputs) << endl;
+			cout << setAssociatewithPrefetch(16,inputs) << endl;
+	cout << setAssociatewithPrefetchOnMiss(2, inputs) << endl;
+		cout << setAssociatewithPrefetchOnMiss(4, inputs) << endl;
+		cout << setAssociatewithPrefetchOnMiss(8, inputs) << endl;
+		cout << setAssociatewithPrefetchOnMiss(16, inputs) << endl;
+
+
+
+
+
 
 
 	infile.close();
