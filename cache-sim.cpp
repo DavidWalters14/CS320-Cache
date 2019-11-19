@@ -396,6 +396,7 @@ int setAssociatewithPrefetchOnMiss(int associative, vector<input> input){
 }
 int main(int argc, char** argv){
 	ifstream infile(argv[1]);
+	ofstream output(argv[2]);
 	vector<input> inputs;
   	string behavior;
 	unsigned long long target;
@@ -405,35 +406,14 @@ int main(int argc, char** argv){
 		i.address = target;
 		inputs.push_back(i);
   	}
-	cout << directMap(1024,inputs) << ","<< inputs.size()<<endl;
-	cout << directMap(4096,inputs) << endl;
-	cout << directMap(16384,inputs) << endl;
-	cout << directMap(32768,inputs) << endl;
-	cout << setAssociate(2,inputs) << endl;
-	cout << setAssociate(4,inputs) << endl;
-	cout << setAssociate(8,inputs) << endl;
-	cout << setAssociate(16,inputs) << endl;
-	cout << setAssociate(512,inputs) << endl;
-		cout << fullAssociative(inputs) << endl;
-	cout << setAssociatewritemiss(2,inputs) << endl;
-		cout << setAssociatewritemiss(4,inputs) << endl;
-			cout << setAssociatewritemiss(8,inputs) << endl;
-	cout << setAssociatewritemiss(16,inputs) << endl;
-	cout << setAssociatewithPrefetch(2,inputs) << endl;
-		cout << setAssociatewithPrefetch(4,inputs) << endl;
-			cout << setAssociatewithPrefetch(8,inputs) << endl;
-			cout << setAssociatewithPrefetch(16,inputs) << endl;
-	cout << setAssociatewithPrefetchOnMiss(2, inputs) << endl;
-		cout << setAssociatewithPrefetchOnMiss(4, inputs) << endl;
-		cout << setAssociatewithPrefetchOnMiss(8, inputs) << endl;
-		cout << setAssociatewithPrefetchOnMiss(16, inputs) << endl;
-
-
-
-
-
-
-
+	output << directMap(1024,inputs) << ","<< inputs.size()<<"; " << directMap(4096,inputs) << "," << inputs.size() <<"; " << directMap(16384,inputs) <<"," << inputs.size() <<"; " << directMap(32768,inputs) << "," << inputs.size() <<";"<<endl;
+	output << setAssociate(2,inputs) << ","<< inputs.size()<<"; " << setAssociate(4,inputs)<< "," << inputs.size() <<"; " << setAssociate(8,inputs) <<"," << inputs.size() <<"; " << setAssociate(16,inputs) << "," << inputs.size() <<";"<<endl;
+	output << setAssociate(512,inputs) << "," << inputs.size() << ";"<< endl;
+	output << fullAssociative(inputs) <<"," <<inputs.size() <<";" << endl;
+	output << setAssociatewritemiss(2,inputs) << ","<< inputs.size()<<"; " << setAssociatewritemiss(4,inputs)<< "," << inputs.size() <<"; " << setAssociatewritemiss(8,inputs) <<"," << inputs.size() <<"; " << setAssociatewritemiss(16,inputs) << "," << inputs.size() <<";"<<endl;
+	output << setAssociatewithPrefetch(2,inputs) << ","<< inputs.size()<<"; " << setAssociatewithPrefetch(4,inputs)<< "," << inputs.size() <<"; " << setAssociatewithPrefetch(8,inputs) <<"," << inputs.size() <<"; " << setAssociatewithPrefetch(16,inputs) << "," << inputs.size() <<";"<<endl;
+	output << setAssociatewithPrefetchOnMiss(2, inputs) << ","<< inputs.size()<<"; " << setAssociatewithPrefetchOnMiss(4, inputs)<< "," << inputs.size() <<"; " << setAssociatewithPrefetchOnMiss(8, inputs) <<"," << inputs.size() <<"; " << setAssociatewithPrefetchOnMiss(16, inputs) << "," << inputs.size() <<";"<<endl;
+	
 	infile.close();
-
+	output.close();
 }

@@ -7,7 +7,7 @@ $(Q).o: $(Q).cpp
 	$(FLAGS) -c $(Q).cpp
 
 run: all
-	./$(Q) trace1.txt
+	./$(Q) trace1.txt output.txt
 
 clean: all
 	rm -rf $(Q) *.o
