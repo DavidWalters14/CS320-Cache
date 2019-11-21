@@ -88,59 +88,22 @@ unsigned int setAssociate(int associative, vector<input> input){
 	return cachehits;
 }
 vector<int> changeHotCold(int index, vector<int> &hc){
-	/*int mid = 255;
-	int start = 0;
-	int end = 511;
-	while(start != end){
-		if(index <= mid){
-			end = mid;
-			hc[mid] = 0;
-			mid = (start+end)/2;
-		}
-		else if(index > mid){
-			start = mid+1;
-			hc[mid] = 1;
-			mid = (start+end)/2;
-		}
-	}*/
-	int hcindex = 0;
+	int hcindex = index+511;
 	//finding coldest index
-	while(hcindex<511){
-		if(hc[hcindex]==0){
-			hcindex=(hcindex*2)+2;
-		}
-		else{
-			hcindex = (2*hcindex)+1;		
-		}
-	}
-	hcindex = hcindex-511;
-	//found coldest index now need to make it hottest path
-	while(hcindex>=0){
+	while(hcindex>0){
+		int newindex = (hcindex-1)/2;
 		if(hcindex%2==0){
-			hcindex = (hcindex-2)/2;
+			hc[newindex]=1;
+			
 		}
 		else{
-			hcindex = (hcindex-1)/2;	
+			hc[newindex]=0;
 		}
+		hcindex = newindex;
 	}
 	return hc;
 }
-int findhottest(vector<int> hc){
-	int mid = 255;
-	int start = 0;
-	int end = 511;
-	while(start != end){
-		if(hc[mid]==1){
-			start=mid+1;
-			mid = (start+end)/2;
-		}
-		else{
-			end = mid;
-			mid = (start+end)/2;
-		}
-	}
-	return start;
-}
+
 
 int findLRUhotcold(vector<int> hc){
 	int hcindex = 0;
@@ -152,7 +115,7 @@ int findLRUhotcold(vector<int> hc){
 			hcindex = (2*hcindex)+1;		
 		}
 	}
-	hcindex = 511-hcindex;
+	hcindex = hcindex-511;
 	return hcindex;
 }
 unsigned int fullAssociative(vector<input> input){
@@ -169,16 +132,8 @@ unsigned int fullAssociative(vector<input> input){
 		unsigned int currtag = (input[i].address >> 5);
 		bool placed = false;
 		while(currindex<512&&placed==false){
-			if(cache[currindex].validbit==0){
-				cache[currindex].tag = currtag;
-				cache[currindex].validbit = 1;
-				cache[currindex].time = i;
-				placed = true;
-				hotcold = changeHotCold(currindex, hotcold);
-			}
-			else if(cache[currindex].validbit==1&&cache[currindex].tag==currtag){
+			if(cache[currindex].validbit==1&&cache[currindex].tag==currtag){
 				cachehits++;
-				cache[currindex].time = i;
 				placed = true;
 				hotcold = changeHotCold(currindex, hotcold);
 			}
@@ -187,10 +142,10 @@ unsigned int fullAssociative(vector<input> input){
 		currindex = 0;
 		if(placed==false){
 			int bootindex = findLRUhotcold(hotcold);
+			//cout << bootindex << endl;
 			cache[bootindex].tag = currtag;
 			cache[bootindex].validbit = 1;
-			cache[bootindex].time = i;
-			changeHotCold(bootindex, hotcold);
+			hotcold = changeHotCold(bootindex, hotcold);
 		}
 	}
 	return cachehits;
@@ -426,7 +381,7 @@ int main(int argc, char** argv){
 	output << directMap(1024,inputs) << ","<< inputs.size()<<"; " << directMap(4096,inputs) << "," << inputs.size() <<"; " << directMap(16384,inputs) <<"," << inputs.size() <<"; " << directMap(32768,inputs) << "," << inputs.size() <<";"<<endl;
 	output << setAssociate(2,inputs) << ","<< inputs.size()<<"; " << setAssociate(4,inputs)<< "," << inputs.size() <<"; " << setAssociate(8,inputs) <<"," << inputs.size() <<"; " << setAssociate(16,inputs) << "," << inputs.size() <<";"<<endl;
 	output << setAssociate(512,inputs) << "," << inputs.size() << ";"<< endl;
-	//output << fullAssociative(inputs) <<"," <<inputs.size() <<";" << endl;
+	output << fullAssociative(inputs) <<"," <<inputs.size() <<";" << endl;
 	output << setAssociatewritemiss(2,inputs) << ","<< inputs.size()<<"; " << setAssociatewritemiss(4,inputs)<< "," << inputs.size() <<"; " << setAssociatewritemiss(8,inputs) <<"," << inputs.size() <<"; " << setAssociatewritemiss(16,inputs) << "," << inputs.size() <<";"<<endl;
 	output << setAssociatewithPrefetch(2,inputs) << ","<< inputs.size()<<"; " << setAssociatewithPrefetch(4,inputs)<< "," << inputs.size() <<"; " << setAssociatewithPrefetch(8,inputs) <<"," << inputs.size() <<"; " << setAssociatewithPrefetch(16,inputs) << "," << inputs.size() <<";"<<endl;
 	output << setAssociatewithPrefetchOnMiss(2, inputs) << ","<< inputs.size()<<"; " << setAssociatewithPrefetchOnMiss(4, inputs)<< "," << inputs.size() <<"; " << setAssociatewithPrefetchOnMiss(8, inputs) <<"," << inputs.size() <<"; " << setAssociatewithPrefetchOnMiss(16, inputs) << "," << inputs.size() <<";"<<endl;
